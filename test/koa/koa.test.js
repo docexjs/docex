@@ -6,6 +6,9 @@ describe('koa', () => {
         supertest(server)
             .get('/')
             .expect(200)
-            .end(done);
+            .end(() => {
+                done();
+                server.close();
+            });
     });
 });

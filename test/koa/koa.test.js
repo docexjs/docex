@@ -1,9 +1,9 @@
 const supertest = require('supertest');
-const application = require('./koa');
+const server = require('./koa');
 
 describe('koa', () => {
-    it('server', done => {
-        supertest(application)
+    it('simple server', (done) => {
+        supertest(server)
             .get('/')
             .expect(200)
             .end(done);

@@ -1,14 +1,15 @@
-import { IncomingMessage, ServerResponse } from 'http';
-import { NextFunction } from 'express';
-import { InvalidMiddlewareArgs } from './errors';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as SwaggerParser from 'swagger-parser';
+import * as Cache from './cache';
+import {
+    InvalidMiddlewareArgs,
+    MissingRequiredOption,
+    NotFoundOpenapiFile
+} from './errors';
+import { DocexOptions, MiddlewareArgs } from './interfaces';
 
-interface IMiddlewareArgs {
-    req: IncomingMessage;
-    res: ServerResponse;
-    next: NextFunction;
-}
-
-const unzipMiddlewareArgs = (args): IMiddlewareArgs => {
+const unzipMiddlewareArgs = (args): MiddlewareArgs => {
     if (!Array.isArray(args)) {
         throw new InvalidMiddlewareArgs();
     }
@@ -28,13 +29,25 @@ const unzipMiddlewareArgs = (args): IMiddlewareArgs => {
     }
 }
 
-const docex = () => {
+const docex = (options: DocexOptions) => {
+    if (!options?.openapiPath) {
+        throw new MissingRequiredOption('openapiPath');
+    }
+
+    const rootPath = process.cwd();
+    const openapiPath = path.join(rootPath, options.openapiPath);
+
+    const isExistsOpenapiFile = fs.existsSync(openapiPath);
+    if (!isExistsOpenapiFile) {
+        throw new NotFoundOpenapiFile();
+    }
+
     return async (...args) => {
         const {
             req,
             res,
             next
-        }: IMiddlewareArgs = unzipMiddlewareArgs(args);
+        }: MiddlewareArgs = unzipMiddlewareArgs(args);
 
         return await next();
     }

@@ -14,7 +14,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(docex());
+app.use(docex({ openapiPath: './openapi.yaml' }));
 
 app.get('/', (req, res, next) => {
     const obj = {

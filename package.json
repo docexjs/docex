@@ -4,6 +4,7 @@
   "description": "",
   "source": "lib/docex.ts",
   "main": "dist/docex.js",
+  "types": "dist/types.d.ts",
   "directories": {
     "lib": "lib"
   },
@@ -40,5 +41,9 @@
     "rimraf": "^3.0.2",
     "supertest": "^6.2.2",
     "typescript": "^4.6.2"
+  },
+  "dependencies": {
+    "node-cache": "^5.1.2",
+    "swagger-parser": "^10.0.3"
   }
 }

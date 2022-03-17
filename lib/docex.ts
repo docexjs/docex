@@ -8,7 +8,11 @@ import {
     MissingRequiredOption,
     NotFoundOpenapiFile
 } from './errors';
-import { DocexOptions, MiddlewareArgs } from './interfaces';
+import {
+    ConstructDocumentParams,
+    DocexOptions,
+    MiddlewareArgs
+} from './interfaces';
 
 const unzipMiddlewareArgs = (args): MiddlewareArgs => {
     if (args.length === 2) {
@@ -46,7 +50,7 @@ const cacheOpenapi = async (openapiPath: string) => {
 
 }
 
-const constructDocument = (data, params) => {
+const constructDocument = async (params: ConstructDocumentParams) => {
 
 }
 
@@ -85,7 +89,8 @@ const docex = (options: DocexOptions) => {
                 await cacheOpenapi(openapiPath);
             }
 
-            const params = {
+            const params: ConstructDocumentParams = {
+                data,
                 openapi: cache.get('openapi'),
                 url: req.url,
                 method: req.method.toLowerCase(),
@@ -93,7 +98,7 @@ const docex = (options: DocexOptions) => {
                 type: req?.body?.type ?? 'table'
             }
 
-            return await constructDocument(data, params);
+            return await constructDocument(params);
         } catch (e) {
             next(e);
         }

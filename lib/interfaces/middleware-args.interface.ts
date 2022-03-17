@@ -1,8 +1,11 @@
-import { IncomingMessage, ServerResponse } from 'http';
-import { NextFunction } from 'express';
+import {
+    Request,
+    Response,
+    NextFunction
+} from 'express';
 
 export interface MiddlewareArgs {
-    req: IncomingMessage;
-    res: ServerResponse;
+    req: Request;
+    res: Response;
     next: NextFunction;
 }

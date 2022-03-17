@@ -3,5 +3,6 @@ const MISSING_REQUIRED_OPTION_MSG = (option: string): string => `The '${option}'
 export class MissingRequiredOption extends Error {
     constructor(option: string) {
         super(MISSING_REQUIRED_OPTION_MSG(option));
+        this.name = 'MissingRequiredOption';
     }
 }

@@ -1,6 +1,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as SwaggerParser from 'swagger-parser';
+import { OpenAPI, OpenAPIV3 } from 'openapi-types';
+import * as Excel from 'exceljs';
 import * as Cache from './cache';
 import {
     INVALID_MIDDLEWARE_ARGS_MSG,
@@ -11,8 +13,13 @@ import {
 import {
     ConstructDocumentParams,
     DocexOptions,
-    MiddlewareArgs
+    MiddlewareArgs,
+    Type,
+    Data
 } from './interfaces';
+
+const OPENAPI_CACHE_KEY = 'openapi';
+const cache = Cache.getInstance();
 
 const unzipMiddlewareArgs = (args): MiddlewareArgs => {
     if (args.length === 2) {
@@ -30,7 +37,7 @@ const unzipMiddlewareArgs = (args): MiddlewareArgs => {
     }
 }
 
-const parseOpenapi = async (openapiPath: string) => {
+const parseOpenapi = async (openapiPath: string): Promise<OpenAPI.Document> => {
     try {
         return await SwaggerParser.parse(openapiPath);
     } catch (e) {
@@ -40,18 +47,74 @@ const parseOpenapi = async (openapiPath: string) => {
 
 const cacheOpenapi = async (openapiPath: string) => {
     try {
-        const cache = Cache.getInstance();
         const parsedOpenapi = await parseOpenapi(openapiPath);
-
-        cache.set('openapi', parsedOpenapi);
+        cache.set(OPENAPI_CACHE_KEY, parsedOpenapi);
     } catch (e) {
         throw e;
     }
 
 }
 
-const constructDocument = async (params: ConstructDocumentParams) => {
+const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject => {
+    const openapi: OpenAPIV3.Document = cache.get(OPENAPI_CACHE_KEY);
 
+    const path = openapi.paths[url][method];
+    const response = path.responses[200];
+    const content = response.content['application/json'];
+    const schema = content.schema;
+
+    let ref
+
+    if (schema?.type === 'array') {
+        ref = schema.items.$ref;
+    }
+
+    ref = schema.$ref;
+
+    if (!ref) {
+        //
+    }
+
+    const paths = ref.split('/');
+    const schemaName = paths[paths.length - 1];
+    const schemaData = openapi.components.schemas[schemaName];
+
+    if (!schemaData) {
+        //
+    }
+
+    return schemaData as OpenAPIV3.SchemaObject;
+}
+
+const collectRows = () => {
+
+}
+
+const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
+
+}
+
+const constructXLSX = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
+    const workbook = new Excel.Workbook();
+    const worksheet = workbook.addWorksheet();
+
+    let rows;
+
+    if (type === 'table') {
+
+    } else if (type === 'list') {
+
+    }
+}
+
+const constructDocument = async (params: ConstructDocumentParams) => {
+    const schema = getOpenapiSchema(params.url, params.method);
+
+    if (params.ext === 'pdf') {
+        await constructPDF(params.data, schema, params.type);
+    } else if (params.ext === 'xlsx') {
+        await constructXLSX(params.data, schema, params.type);
+    }
 }
 
 const docex = (options: DocexOptions) => {
@@ -68,8 +131,6 @@ const docex = (options: DocexOptions) => {
         throw new NotFoundOpenapiFile();
     }
 
-    const cache = Cache.getInstance();
-
     return async (...args) => {
         if (!Array.isArray(args)) {
             console.error(INVALID_MIDDLEWARE_ARGS_MSG);
@@ -85,13 +146,13 @@ const docex = (options: DocexOptions) => {
         const data = await next();
 
         try {
-            if (!cache.has('openapi')) {
+            if (!cache.has(OPENAPI_CACHE_KEY)) {
                 await cacheOpenapi(openapiPath);
             }
 
             const params: ConstructDocumentParams = {
                 data,
-                openapi: cache.get('openapi'),
+                openapi: cache.get(OPENAPI_CACHE_KEY),
                 url: req.url,
                 method: req.method.toLowerCase(),
                 ext: req?.body?.ext ?? 'json',

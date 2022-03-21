@@ -43,6 +43,7 @@
     "typescript": "^4.6.2"
   },
   "dependencies": {
+    "exceljs": "^4.3.0",
     "node-cache": "^5.1.2",
     "swagger-parser": "^10.0.3"
   }

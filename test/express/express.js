@@ -18,7 +18,9 @@ app.use(docex({ openapiPath: './openapi.yaml' }));
 
 app.get('/', (req, res, next) => {
     const obj = {
-        foo: 'bar'
+        number: 1,
+        name: 'Docex',
+        desc: 'Middleware'
     };
     res.send(obj);
 

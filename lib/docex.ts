@@ -1,7 +1,10 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as SwaggerParser from 'swagger-parser';
-import { OpenAPI, OpenAPIV3 } from 'openapi-types';
+import {
+    OpenAPI,
+    OpenAPIV3,
+} from 'openapi-types';
 import * as Excel from 'exceljs';
 import * as Cache from './cache';
 import {
@@ -19,6 +22,9 @@ import {
 } from './interfaces';
 
 const OPENAPI_CACHE_KEY = 'openapi';
+const LIST_TYPE_NAME = 'list';
+const TABLE_TYPE_NAME = 'table';
+
 const cache = Cache.getInstance();
 
 const unzipMiddlewareArgs = (args): MiddlewareArgs => {
@@ -52,7 +58,6 @@ const cacheOpenapi = async (openapiPath: string) => {
     } catch (e) {
         throw e;
     }
-
 }
 
 const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject => {
@@ -86,35 +91,65 @@ const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject => {
     return schemaData as OpenAPIV3.SchemaObject;
 }
 
-const collectRows = () => {
+const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type): any => {
 
 }
+const getTableColumns = (properties): Array<Partial<Excel.Column>> => {
+    return Object.entries(properties).map(([key, value]: [string, OpenAPIV3.SchemaObject]) => ({
+        key,
+        header: value.title
+    }));
+}
+
+const getListColumns = () => {
+    return [
+        {
+            key: 'title',
+            header: ''
+        },
+        {
+            key: 'value',
+            header: ''
+        }
+    ];
 
 const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
 
+}
+
+const getColumns = (properties, type: Type) => {
+    if (type === TABLE_TYPE_NAME) {
+        return getTableColumns(properties);
+    } else if (type === LIST_TYPE_NAME) {
+        return getListColumns();
+    }
+    return [];
 }
 
 const constructXLSX = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
     const workbook = new Excel.Workbook();
     const worksheet = workbook.addWorksheet();
 
-    let rows;
+    worksheet.columns = getColumns(schema.properties, type);
 
-    if (type === 'table') {
+    const rows = collectRows(data, schema, type);
+    worksheet.addRows(rows);
 
-    } else if (type === 'list') {
-
-    }
+    return await workbook.xlsx.writeBuffer();
 }
 
 const constructDocument = async (params: ConstructDocumentParams) => {
     const schema = getOpenapiSchema(params.url, params.method);
 
-    if (params.ext === 'pdf') {
-        await constructPDF(params.data, schema, params.type);
-    } else if (params.ext === 'xlsx') {
-        await constructXLSX(params.data, schema, params.type);
-    }
+    let buffer;
+
+    buffer = await constructXLSX(params.data, schema, params.type);
+
+    // if (params.ext === 'pdf') {
+    //     buffer = await constructPDF(params.data, schema, params.type);
+    // } else if (params.ext === 'xlsx') {
+    //     buffer = await constructXLSX(params.data, schema, params.type);
+    // }
 }
 
 const docex = (options: DocexOptions) => {

@@ -23,6 +23,6 @@ components:
       type: object
       properties:
         number:
-          name: п/н
+          title: п/н
         depart_name:
-          name: Наименование
+          title: Наименование

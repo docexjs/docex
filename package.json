@@ -1,6 +1,6 @@
 {
   "name": "docex",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "",
   "source": "lib/docex.ts",
   "main": "dist/docex.js",

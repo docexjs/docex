@@ -1,6 +1,6 @@
 import { OpenAPI } from 'openapi-types';
 
-export type Extension = 'xlsx' | 'pdf';
+export type Extension = 'json' | 'xlsx' | 'pdf';
 export type Type = 'table' | 'list';
 export type Data = {
     [key: string]: any

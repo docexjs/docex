@@ -47,6 +47,7 @@
     "exceljs": "^4.3.0",
     "node-cache": "^5.1.2",
     "pdfmake": "^0.2.4",
+    "qs": "^6.10.3",
     "swagger-parser": "^10.0.3",
     "uuid": "^8.3.2"
   }

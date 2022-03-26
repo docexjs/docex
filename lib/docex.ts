@@ -4,6 +4,7 @@ import {
     OpenAPIV3,
 } from 'openapi-types';
 import * as Excel from 'exceljs';
+import * as qs from 'qs';
 import { v4 as uuidv4 } from 'uuid';
 import * as PdfPrinter from 'pdfmake';
 import * as pdfMake from 'pdfmake/build/pdfmake.js';
@@ -211,10 +212,10 @@ const getListDocDefinitionPdf = (rows) => {
 const writeBufferPdf = async (docDefinition) => {
     const fonts = {
         Roboto: {
-            normal:      path.join(__dirname, 'fonts/Roboto-Regular.ttf'),
-            bold:        path.join(__dirname, 'fonts/Roboto-Medium.ttf'),
-            italics:     path.join(__dirname, 'fonts/Roboto-Italic.ttf'),
-            bolditalics: path.join(__dirname, 'fonts/Roboto-MediumItalic.ttf')
+            normal:      path.resolve(__dirname, '../lib/fonts/Roboto-Regular.ttf'),
+            bold:        path.resolve(__dirname, '../lib/fonts/Roboto-Medium.ttf'),
+            italics:     path.resolve(__dirname, '../lib/fonts/Roboto-Italic.ttf'),
+            bolditalics: path.resolve(__dirname, '../lib/fonts/Roboto-MediumItalic.ttf')
         }
     };
 
@@ -322,13 +323,19 @@ const docex = (options: DocexOptions) => {
                 await cacheOpenapi(openapiPath);
             }
 
+            const query = qs.parse(req._parsedUrl.query);
+
             const params: ConstructDocumentParams = {
                 data,
                 openapi: cache.get(CONFIG.OPENAPI_CACHE_KEY),
-                url: req.url,
+                url: req._parsedUrl.pathname,
                 method: req.method.toLowerCase(),
-                ext: req?.body?.ext ?? 'pdf',
-                type: req?.body?.type ?? 'table',
+                ext: req?.body?.ext ?? query?.ext ?? 'json',
+                type: req?.body?.type ?? query?.type ?? 'table',
+            }
+
+            if (params.ext === 'json') {
+                return data;
             }
 
             const document = await constructDocument(params);

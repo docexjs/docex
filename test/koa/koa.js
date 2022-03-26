@@ -26,7 +26,7 @@ router.get('/', (ctx, next) => {
     return obj;
 });
 
-app.use(docex({ openapiPath: './openapi.yaml' }));
+app.use(docex({ openapiPath: './openapi.yaml', savePath: './docs' }));
 app.use(router.routes());
 app.use(router.allowedMethods());
 

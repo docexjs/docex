@@ -4,6 +4,10 @@ import {
     OpenAPIV3,
 } from 'openapi-types';
 import * as Excel from 'exceljs';
+import { v4 as uuidv4 } from 'uuid';
+import * as PdfPrinter from 'pdfmake';
+import * as pdfMake from 'pdfmake/build/pdfmake.js';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts.js';
 import * as Cache from './cache';
 import {
     INVALID_MIDDLEWARE_ARGS_MSG,
@@ -153,14 +157,14 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
     return rows;
 }
 
-const getTableColumns = (properties): Array<Partial<Excel.Column>> => {
+const getTableColumnsXlsx = (properties): Array<Partial<Excel.Column>> => {
     return Object.entries(properties).map(([key, value]: [string, OpenAPIV3.SchemaObject]) => ({
         key,
         header: value.title
     }));
 }
 
-const getListColumns = () => {
+const getListColumnsXlsx = () => {
     return [
         {
             key: 'title',
@@ -173,8 +177,86 @@ const getListColumns = () => {
     ];
 }
 
-const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
+const getTableDocDefinitionPdf = (columns, rows) => {
+    return {
+        pageOrientation: 'landscape',
+        content: [
+            {
+                table: {
+                    headerRows: 1,
+                    body: [columns, ...rows]
+                },
+                style: 'table'
+            }
+        ]
+    }
+}
 
+const getListDocDefinitionPdf = (rows) => {
+    return {
+        pageOrientation: 'landscape',
+        content: [
+            {
+                layout: 'noBorders',
+                table: {
+                    headerRows: 1,
+                    body: rows
+                },
+                style: 'table'
+            },
+        ]
+    }
+}
+
+const writeBufferPdf = async (docDefinition) => {
+    const fonts = {
+        Roboto: {
+            normal:      path.join(__dirname, 'fonts/Roboto-Regular.ttf'),
+            bold:        path.join(__dirname, 'fonts/Roboto-Medium.ttf'),
+            italics:     path.join(__dirname, 'fonts/Roboto-Italic.ttf'),
+            bolditalics: path.join(__dirname, 'fonts/Roboto-MediumItalic.ttf')
+        }
+    };
+
+    return new Promise((resolve) => {
+        pdfMake.vfs = pdfFonts.pdfMake.vfs;
+        const printer = new PdfPrinter(fonts);
+        const doc = printer.createPdfKitDocument(docDefinition);
+
+        let chunks = [];
+        let result;
+
+        doc.on('data', (chunk) => {
+            chunks.push(chunk);
+        });
+
+        doc.on('end', () => {
+            result = Buffer.concat(chunks);
+            resolve(result);
+        });
+
+        doc.end();
+    });
+}
+
+const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
+    const schemaProperties = wrapSchemaProperties(schema.properties);
+    const columns = schemaProperties.map(property => ({
+        text: property.value.title,
+        style: 'tableHeader'
+    }));
+
+    let docDefinition;
+
+    const rows = collectRows(data, schema, type);
+
+    if (type === CONFIG.TABLE_TYPE_NAME) {
+        docDefinition = getTableDocDefinitionPdf(columns, rows);
+    } else if (type === CONFIG.LIST_TYPE_NAME) {
+        docDefinition = getListDocDefinitionPdf(rows)
+    }
+
+    return await writeBufferPdf(docDefinition);
 }
 
 const constructXLSX = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
@@ -182,9 +264,9 @@ const constructXLSX = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject
     const worksheet = workbook.addWorksheet();
 
     if (type === CONFIG.TABLE_TYPE_NAME) {
-        worksheet.columns = getTableColumns(schema.properties);
+        worksheet.columns = getTableColumnsXlsx(schema.properties);
     } else if (type === CONFIG.LIST_TYPE_NAME) {
-        worksheet.columns = getListColumns();
+        worksheet.columns = getListColumnsXlsx();
     }
 
     const rows = collectRows(data, schema, type);
@@ -198,15 +280,13 @@ const constructDocument = async (params: ConstructDocumentParams) => {
 
     let buffer;
 
-    buffer = await constructXLSX(params.data, schema, params.type);
+    if (params.ext === 'pdf') {
+        buffer = await constructPDF(params.data, schema, params.type);
+    } else if (params.ext === 'xlsx') {
+        buffer = await constructXLSX(params.data, schema, params.type);
+    }
 
-    fs.createWriteStream('./docs/test.xlsx').write(buffer);
-
-    // if (params.ext === 'pdf') {
-    //     buffer = await constructPDF(params.data, schema, params.type);
-    // } else if (params.ext === 'xlsx') {
-    //     buffer = await constructXLSX(params.data, schema, params.type);
-    // }
+    return buffer;
 }
 
 const docex = (options: DocexOptions) => {
@@ -247,11 +327,26 @@ const docex = (options: DocexOptions) => {
                 openapi: cache.get(CONFIG.OPENAPI_CACHE_KEY),
                 url: req.url,
                 method: req.method.toLowerCase(),
-                ext: req?.body?.ext ?? 'xlsx',
-                type: req?.body?.type ?? 'table'
+                ext: req?.body?.ext ?? 'pdf',
+                type: req?.body?.type ?? 'table',
             }
 
-            return await constructDocument(params);
+            const document = await constructDocument(params);
+            const fileName = uuidv4();
+
+            if (options?.savePath) {
+                const filePath = `${options.savePath}/${fileName}.${params.ext}`;
+
+                fs.writeFileSync(filePath, document);
+            }
+
+            if (options?.bufferAsResponse) {
+                return {
+                    fileName,
+                    document
+                }
+            }
+
         } catch (e) {
             next(e);
         }

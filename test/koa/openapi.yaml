@@ -28,3 +28,17 @@ components:
           title: Наименование
         desc:
           title: Описание
+        nestedObj:
+          title: Вложенность1
+          properties:
+            test:
+              title: Тест
+            prop:
+              title: Prop
+        nestedArr:
+          title: Вложенность2
+          properties:
+            ppp:
+              title: QQQQ
+            www:
+              title: RRRR

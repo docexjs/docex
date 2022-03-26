@@ -91,9 +91,129 @@ const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject => {
     return schemaData as OpenAPIV3.SchemaObject;
 }
 
-const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type): any => {
+const flatNestedProperty = (elementData, properties, type) => {
+    let flat = [];
 
+    const addPaddingToFlat = () => {
+        flat.push(['', '']);
+    }
+
+    let arrayData = wrapDataToArrayData(elementData);
+    let schemaProperties = wrapSchemaProperties(properties);
+
+    for (let dIndex = 0; dIndex < arrayData.length; dIndex++) {
+        let element = arrayData[dIndex];
+
+        for (let pIndex = 0; pIndex < schemaProperties.length; pIndex++) {
+            let schemaProperty = schemaProperties[pIndex];
+
+            let propertyKey = schemaProperty.key;
+            let propertyValue = schemaProperty.value;
+
+            if (Array.isArray(element[propertyKey])) {
+                let innerProperties = properties[propertyKey].properties;
+
+                if (type === LIST_TYPE_NAME) {
+                    addPaddingToFlat();
+                    flat.push([propertyValue.title, '']);
+                    addPaddingToFlat();
+                }
+
+                flatNestedProperty(element[propertyKey], innerProperties, type);
+
+            }
+
+            flat.push([propertyValue.title, element[propertyKey]]);
+        }
+
+        if (type === LIST_TYPE_NAME) {
+            addPaddingToFlat();
+        }
+    }
+
+    return flat;
 }
+
+const wrapDataToArrayData = (data: Data | Data[]): Data[] => {
+    return Array.isArray(data) ? data : [data];
+}
+
+const wrapSchemaProperties = (properties): Array<{
+    key: string,
+    value: OpenAPIV3.SchemaObject
+}> => {
+    return Object.entries(properties).map(([key, value]) => ({ key, value }));
+}
+
+const isObj = (o) => {
+    return typeof o === 'object' && !Array.isArray(o) && o !== null;
+}
+
+const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type): any[] => {
+    let rows = [];
+
+    const addPaddingToRows = () => {
+        rows.push(['', '']);
+    }
+
+    let arrayData = wrapDataToArrayData(data);
+    let schemaProperties = wrapSchemaProperties(schema.properties)
+
+    for (let dIndex = 0; dIndex < arrayData.length; dIndex++) {
+        let element = arrayData[dIndex];
+        let row = [];
+
+        for (let pIndex = 0; pIndex < schemaProperties.length; pIndex++) {
+            let schemaProperty = schemaProperties[pIndex];
+
+            let propertyKey = schemaProperty.key;
+            let propertyValue = schemaProperty.value;
+
+            if (propertyKey === 'number' && type !== LIST_TYPE_NAME) {
+                row.push(++dIndex);
+                continue;
+            }
+
+            let header = propertyValue.title;
+            let value = element[propertyKey];
+
+            if (Array.isArray(value) || isObj(value)) {
+                const flat = flatNestedProperty(value, propertyValue.properties, type);
+
+                if (type === LIST_TYPE_NAME) {
+                    addPaddingToRows();
+                    rows.push([header, '']);
+                    addPaddingToRows();
+                    rows.push(...flat);
+                    addPaddingToRows();
+
+                    continue;
+                }
+
+                let str = flat.map(([key, value]) => `${key}: ${value}`).join('\n')
+                row.push(str);
+
+                continue;
+            }
+            if (type === LIST_TYPE_NAME) {
+                rows.push([header, value]);
+                continue;
+            }
+            row.push(value);
+        }
+
+        if (!row.length && type === LIST_TYPE_NAME) {
+            continue;
+        }
+
+        if (type !== LIST_TYPE_NAME) {
+            rows.push(row);
+        }
+    }
+
+    return rows;
+}
+
 const getTableColumns = (properties): Array<Partial<Excel.Column>> => {
     return Object.entries(properties).map(([key, value]: [string, OpenAPIV3.SchemaObject]) => ({
         key,
@@ -112,25 +232,21 @@ const getListColumns = () => {
             header: ''
         }
     ];
+}
 
 const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
 
-}
-
-const getColumns = (properties, type: Type) => {
-    if (type === TABLE_TYPE_NAME) {
-        return getTableColumns(properties);
-    } else if (type === LIST_TYPE_NAME) {
-        return getListColumns();
-    }
-    return [];
 }
 
 const constructXLSX = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
     const workbook = new Excel.Workbook();
     const worksheet = workbook.addWorksheet();
 
-    worksheet.columns = getColumns(schema.properties, type);
+    if (type === TABLE_TYPE_NAME) {
+        worksheet.columns = getTableColumns(schema.properties);
+    } else if (type === LIST_TYPE_NAME) {
+        worksheet.columns = getListColumns();
+    }
 
     const rows = collectRows(data, schema, type);
     worksheet.addRows(rows);
@@ -144,6 +260,8 @@ const constructDocument = async (params: ConstructDocumentParams) => {
     let buffer;
 
     buffer = await constructXLSX(params.data, schema, params.type);
+
+    fs.createWriteStream('./docs/test.xlsx').write(buffer);
 
     // if (params.ext === 'pdf') {
     //     buffer = await constructPDF(params.data, schema, params.type);
@@ -190,7 +308,7 @@ const docex = (options: DocexOptions) => {
                 openapi: cache.get(OPENAPI_CACHE_KEY),
                 url: req.url,
                 method: req.method.toLowerCase(),
-                ext: req?.body?.ext ?? 'json',
+                ext: req?.body?.ext ?? 'xlsx',
                 type: req?.body?.type ?? 'table'
             }
 

@@ -11,7 +11,15 @@ router.get('/', (ctx, next) => {
     const obj = {
         number: 1,
         name: 'Docex',
-        desc: 'Middleware'
+        desc: 'Middleware',
+        nestedObj: {
+            test: 1,
+            prop: 2
+        },
+        nestedArr: [{
+            ppp: 'qwe',
+            www: 'rty'
+        }]
     };
     ctx.body = obj;
 

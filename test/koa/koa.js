@@ -9,14 +9,24 @@ const router = new Router();
 
 router.get('/', (ctx, next) => {
     const obj = {
-        foo: 'bar'
+        number: 1,
+        name: 'Docex',
+        desc: 'Middleware',
+        nestedObj: {
+            test: 1,
+            prop: 2
+        },
+        nestedArr: [{
+            ppp: 'qwe',
+            www: 'rty'
+        }]
     };
     ctx.body = obj;
 
     return obj;
 });
 
-app.use(docex());
+app.use(docex({ openapiPath: './openapi.yaml', savePath: './docs' }));
 app.use(router.routes());
 app.use(router.allowedMethods());
 

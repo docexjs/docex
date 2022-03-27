@@ -7,7 +7,7 @@
 ## ⚙️ Installation
 
 ```bash
-npm install --save docex
+npm install --save @docex/middleware
 ```
 
 ## 💻 Usage

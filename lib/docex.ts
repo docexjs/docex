@@ -103,7 +103,6 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
 
     for (let dIndex = 0; dIndex < arrayData.length; dIndex++) {
         let element = arrayData[dIndex];
-        let row = [];
 
         for (let pIndex = 0; pIndex < schemaProperties.length; pIndex++) {
             let schemaProperty = schemaProperties[pIndex];
@@ -116,11 +115,11 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
 
             if (propertyKey === 'number') {
                 if (type === CONFIG.TABLE_TYPE_NAME) {
-                    row.push(dIndex + 1);
+                    (rows[dIndex] ??= []).push(dIndex + 1);
                 }
 
                 if (type === CONFIG.LIST_TYPE_NAME) {
-                    rows.push([header, dIndex + 1]);
+                    (rows[pIndex] ??= []).push(header, dIndex + 1);
                 }
 
                 continue;
@@ -139,23 +138,18 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
 
                 if (type === CONFIG.TABLE_TYPE_NAME) {
                     let str = flatRow.map(([key, value]) => `${key}: ${value}`).join('\n');
-                    row.push(str);
+                    (rows[dIndex] ??= []).push(str);
                 }
 
-                continue;
-            }
+            } else {
+                if (type === CONFIG.LIST_TYPE_NAME) {
+                    (rows[pIndex] ??= []).push(header, value);
+                }
 
-            if (type === CONFIG.LIST_TYPE_NAME) {
-                rows.push([header, value]);
+                if (type === CONFIG.TABLE_TYPE_NAME) {
+                    (rows[dIndex] ??= []).push(value);
+                }
             }
-
-            if (type === CONFIG.TABLE_TYPE_NAME) {
-                row.push(value);
-            }
-        }
-
-        if (type === CONFIG.TABLE_TYPE_NAME) {
-            rows.push(row);
         }
     }
 

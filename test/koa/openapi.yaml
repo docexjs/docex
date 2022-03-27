@@ -35,6 +35,21 @@ components:
               title: Тест
             prop:
               title: Prop
+            double:
+              title: Double
+              properties:
+                a:
+                  title: A
+                b:
+                  title: B
+                c:
+                  title: C
+                  properties:
+                    d:
+                      title: D
+                    e:
+                      title: E
+
         nestedArr:
           title: Вложенность2
           properties:

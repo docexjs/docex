@@ -7,7 +7,7 @@ describe('koa generate docs', () => {
             .get('/')
             .query({
                 ext: 'xlsx',
-                type: 'table'
+                type: 'list'
             })
             .expect(200)
             .end(() => {
@@ -20,7 +20,7 @@ describe('koa generate docs', () => {
             .get('/')
             .query({
                 ext: 'xlsx',
-                type: 'list'
+                type: 'table'
             })
             .expect(200)
             .end(() => {

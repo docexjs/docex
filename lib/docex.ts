@@ -7,8 +7,6 @@ import * as Excel from 'exceljs';
 import * as qs from 'qs';
 import { v4 as uuidv4 } from 'uuid';
 import * as PdfPrinter from 'pdfmake';
-import * as pdfMake from 'pdfmake/build/pdfmake.js';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts.js';
 import * as Cache from './cache';
 import {
     INVALID_MIDDLEWARE_ARGS_MSG,
@@ -27,6 +25,7 @@ import {
     getOpenapiSchema
 } from './openapi';
 import {
+    getFonts,
     isObj,
     wrapDataToArrayData,
     wrapSchemaProperties
@@ -215,16 +214,8 @@ const getListDocDefinitionPdf = (rows) => {
 }
 
 const writeBufferPdf = async (docDefinition) => {
-    const fonts = {
-        Roboto: {
-            normal:      path.resolve(__dirname, '../fonts/Roboto-Regular.ttf'),
-            bold:        path.resolve(__dirname, '../fonts/Roboto-Medium.ttf'),
-            italics:     path.resolve(__dirname, '../fonts/Roboto-Italic.ttf'),
-            bolditalics: path.resolve(__dirname, '../fonts/Roboto-MediumItalic.ttf')
-        }
-    };
-
     return new Promise((resolve) => {
+        const fonts = getFonts(__dirname);
         const printer = new PdfPrinter(fonts);
         const doc = printer.createPdfKitDocument(docDefinition);
 

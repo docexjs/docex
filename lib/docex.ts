@@ -163,6 +163,13 @@ const getTableColumnsXlsx = (properties): Array<Partial<Excel.Column>> => {
     }));
 }
 
+const getTableColumnsPdf = (properties) => {
+    return wrapSchemaProperties(properties).map(property => ({
+        text: property.value.title,
+        style: 'tableHeader'
+    }));
+}
+
 const getListColumnsXlsx = () => {
     return [
         {
@@ -176,7 +183,9 @@ const getListColumnsXlsx = () => {
     ];
 }
 
-const getTableDocDefinitionPdf = (columns, rows) => {
+const getTableDocDefinitionPdf = (properties, rows) => {
+    const columns = getTableColumnsPdf(properties)
+
     return {
         pageOrientation: 'landscape',
         content: [
@@ -230,18 +239,12 @@ const writeBufferPdf = async (docDefinition) => {
 }
 
 const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
-    const schemaProperties = wrapSchemaProperties(schema.properties);
-    const columns = schemaProperties.map(property => ({
-        text: property.value.title,
-        style: 'tableHeader'
-    }));
+    const rows = collectRows(data, schema, type);
 
     let docDefinition;
 
-    const rows = collectRows(data, schema, type);
-
     if (type === CONFIG.TABLE_TYPE_NAME) {
-        docDefinition = getTableDocDefinitionPdf(columns, rows);
+        docDefinition = getTableDocDefinitionPdf(schema.properties, rows);
     } else if (type === CONFIG.LIST_TYPE_NAME) {
         docDefinition = getListDocDefinitionPdf(rows)
     }
@@ -270,9 +273,9 @@ const constructDocument = async (params: ConstructDocumentParams) => {
 
     let buffer;
 
-    if (params.ext === 'pdf') {
+    if (params.ext === CONFIG.PDF_EXT_NAME) {
         buffer = await constructPDF(params.data, schema, params.type);
-    } else if (params.ext === 'xlsx') {
+    } else if (params.ext === CONFIG.XLSX_EXT_NAME) {
         buffer = await constructXLSX(params.data, schema, params.type);
     }
 
@@ -327,19 +330,24 @@ const docex = (options: DocexOptions) => {
                 return data;
             }
 
-            const document = await constructDocument(params);
+            const documentBuffer = await constructDocument(params);
             const fileName = uuidv4();
 
             if (options?.savePath) {
                 const filePath = `${options.savePath}/${fileName}.${params.ext}`;
 
-                fs.writeFileSync(filePath, document);
+                fs.writeFileSync(filePath, documentBuffer);
+
+                return {
+                    fileName,
+                    filePath
+                }
             }
 
             if (options?.bufferAsResponse) {
                 return {
                     fileName,
-                    document
+                    documentBuffer
                 }
             }
 

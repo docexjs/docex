@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { OpenAPIV3 } from 'openapi-types';
 import { Data } from './interfaces';
 
@@ -14,4 +15,15 @@ export const wrapSchemaProperties = (properties): Array<{
     value: OpenAPIV3.SchemaObject
 }> => {
     return Object.entries(properties).map(([key, value]) => ({ key, value }));
+}
+
+export const getFonts = (dirname) => {
+    return {
+        Roboto: {
+            normal:      path.resolve(dirname, '../fonts/Roboto-Regular.ttf'),
+            bold:        path.resolve(dirname, '../fonts/Roboto-Medium.ttf'),
+            italics:     path.resolve(dirname, '../fonts/Roboto-Italic.ttf'),
+            bolditalics: path.resolve(dirname, '../fonts/Roboto-MediumItalic.ttf')
+        }
+    };
 }

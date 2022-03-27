@@ -7,8 +7,6 @@ import * as Excel from 'exceljs';
 import * as qs from 'qs';
 import { v4 as uuidv4 } from 'uuid';
 import * as PdfPrinter from 'pdfmake';
-import * as pdfMake from 'pdfmake/build/pdfmake.js';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts.js';
 import * as Cache from './cache';
 import {
     INVALID_MIDDLEWARE_ARGS_MSG,
@@ -27,6 +25,7 @@ import {
     getOpenapiSchema
 } from './openapi';
 import {
+    getFonts,
     isObj,
     wrapDataToArrayData,
     wrapSchemaProperties
@@ -52,10 +51,10 @@ const unzipMiddlewareArgs = (args): MiddlewareArgs => {
 }
 
 const flatNestedValue = (elementData, properties, type) => {
-    let flatValue = [];
+    let row = [];
 
     const addPaddingToFlat = () => {
-        flatValue.push(['', '']);
+        row.push(['', '']);
     }
 
     let arrayData = wrapDataToArrayData(elementData);
@@ -70,27 +69,26 @@ const flatNestedValue = (elementData, properties, type) => {
             let propertyKey = schemaProperty.key;
             let propertyValue = schemaProperty.value;
 
-            if (Array.isArray(element[propertyKey])) {
+            if (Array.isArray(element[propertyKey]) || isObj(element[propertyKey])) {
                 let innerProperties = properties[propertyKey].properties;
 
                 if (type === CONFIG.LIST_TYPE_NAME) {
                     addPaddingToFlat();
-                    flatValue.push([propertyValue.title, '']);
+                    row.push([propertyValue.title, '']);
                     addPaddingToFlat();
                 }
 
-                flatNestedValue(element[propertyKey], innerProperties, type);
+                let flatValue = flatNestedValue(element[propertyKey], innerProperties, type);
+                row.push(...flatValue);
+
+                continue;
             }
 
-            flatValue.push([propertyValue.title, element[propertyKey]]);
-        }
-
-        if (type === CONFIG.LIST_TYPE_NAME) {
-            addPaddingToFlat();
+            row.push([propertyValue.title, element[propertyKey]]);
         }
     }
 
-    return flatValue;
+    return row;
 }
 
 const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type): any[] => {
@@ -101,7 +99,7 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
     }
 
     let arrayData = wrapDataToArrayData(data);
-    let schemaProperties = wrapSchemaProperties(schema.properties)
+    let schemaProperties = wrapSchemaProperties(schema.properties);
 
     for (let dIndex = 0; dIndex < arrayData.length; dIndex++) {
         let element = arrayData[dIndex];
@@ -113,44 +111,50 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
             let propertyKey = schemaProperty.key;
             let propertyValue = schemaProperty.value;
 
-            if (propertyKey === 'number' && type !== CONFIG.LIST_TYPE_NAME) {
-                row.push(++dIndex);
-                continue;
-            }
-
             let header = propertyValue.title;
             let value = element[propertyKey];
 
+            if (propertyKey === 'number') {
+                if (type === CONFIG.TABLE_TYPE_NAME) {
+                    row.push(dIndex + 1);
+                }
+
+                if (type === CONFIG.LIST_TYPE_NAME) {
+                    rows.push([header, dIndex + 1]);
+                }
+
+                continue;
+            }
+
             if (Array.isArray(value) || isObj(value)) {
-                const flatValue = flatNestedValue(value, propertyValue.properties, type);
+                const flatRow = flatNestedValue(value, propertyValue.properties, type);
 
                 if (type === CONFIG.LIST_TYPE_NAME) {
                     addPaddingToRows();
                     rows.push([header, '']);
                     addPaddingToRows();
-                    rows.push(...flatValue);
+                    rows.push(...flatRow);
                     addPaddingToRows();
-
-                    continue;
                 }
 
-                let str = flatValue.map(([key, value]) => `${key}: ${value}`).join('\n')
-                row.push(str);
+                if (type === CONFIG.TABLE_TYPE_NAME) {
+                    let str = flatRow.map(([key, value]) => `${key}: ${value}`).join('\n');
+                    row.push(str);
+                }
 
                 continue;
             }
+
             if (type === CONFIG.LIST_TYPE_NAME) {
                 rows.push([header, value]);
-                continue;
             }
-            row.push(value);
+
+            if (type === CONFIG.TABLE_TYPE_NAME) {
+                row.push(value);
+            }
         }
 
-        if (!row.length && type === CONFIG.LIST_TYPE_NAME) {
-            continue;
-        }
-
-        if (type !== CONFIG.LIST_TYPE_NAME) {
+        if (type === CONFIG.TABLE_TYPE_NAME) {
             rows.push(row);
         }
     }
@@ -210,17 +214,8 @@ const getListDocDefinitionPdf = (rows) => {
 }
 
 const writeBufferPdf = async (docDefinition) => {
-    const fonts = {
-        Roboto: {
-            normal:      path.resolve(__dirname, '../lib/fonts/Roboto-Regular.ttf'),
-            bold:        path.resolve(__dirname, '../lib/fonts/Roboto-Medium.ttf'),
-            italics:     path.resolve(__dirname, '../lib/fonts/Roboto-Italic.ttf'),
-            bolditalics: path.resolve(__dirname, '../lib/fonts/Roboto-MediumItalic.ttf')
-        }
-    };
-
     return new Promise((resolve) => {
-        pdfMake.vfs = pdfFonts.pdfMake.vfs;
+        const fonts = getFonts(__dirname);
         const printer = new PdfPrinter(fonts);
         const doc = printer.createPdfKitDocument(docDefinition);
 

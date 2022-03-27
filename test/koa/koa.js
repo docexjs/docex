@@ -14,7 +14,15 @@ router.get('/', (ctx, next) => {
         desc: 'Middleware',
         nestedObj: {
             test: 1,
-            prop: 2
+            prop: 2,
+            double: [{
+                a: 1,
+                b: 2,
+                c: [{
+                    d: '3',
+                    e: '4'
+                }]
+            }]
         },
         nestedArr: [{
             ppp: 'qwe',

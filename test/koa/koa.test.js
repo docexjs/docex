@@ -34,7 +34,7 @@ describe('koa generate docs', () => {
             .get('/')
             .query({
                 ext: 'pdf',
-                type: 'table'
+                type: 'list'
             })
             .expect(200)
             .end(() => {
@@ -47,7 +47,7 @@ describe('koa generate docs', () => {
             .get('/')
             .query({
                 ext: 'pdf',
-                type: 'list'
+                type: 'table'
             })
             .expect(200)
             .end(() => {

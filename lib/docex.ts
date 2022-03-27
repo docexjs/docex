@@ -99,7 +99,7 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
     }
 
     let arrayData = wrapDataToArrayData(data);
-    let schemaProperties = wrapSchemaProperties(schema.properties)
+    let schemaProperties = wrapSchemaProperties(schema.properties);
 
     for (let dIndex = 0; dIndex < arrayData.length; dIndex++) {
         let element = arrayData[dIndex];
@@ -116,11 +116,11 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
 
             if (propertyKey === 'number') {
                 if (type === CONFIG.TABLE_TYPE_NAME) {
-                    row.push(++dIndex);
+                    row.push(dIndex + 1);
                 }
 
                 if (type === CONFIG.LIST_TYPE_NAME) {
-                    rows.push([header, ++dIndex]);
+                    rows.push([header, dIndex + 1]);
                 }
 
                 continue;
@@ -138,7 +138,7 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
                 }
 
                 if (type === CONFIG.TABLE_TYPE_NAME) {
-                    let str = flatRow.map(([key, value]) => `${key}: ${value}`).join('\n')
+                    let str = flatRow.map(([key, value]) => `${key}: ${value}`).join('\n');
                     row.push(str);
                 }
 

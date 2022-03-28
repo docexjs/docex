@@ -1,7 +1,10 @@
 import { OpenAPI, OpenAPIV3 } from 'openapi-types';
 import * as SwaggerParser from 'swagger-parser';
 import * as Cache from './cache';
-import { InvalidOpenapiFile } from './errors';
+import {
+    InvalidOpenapiFile,
+    NotDeclaredEndpointInOpenapi
+} from './errors';
 import { CONFIG } from './config'
 
 const cache = Cache.getInstance();
@@ -26,7 +29,12 @@ export const parseOpenapi = async (openapiPath: string): Promise<OpenAPI.Documen
 export const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject => {
     const openapi: OpenAPIV3.Document = cache.get(CONFIG.OPENAPI_CACHE_KEY);
 
-    const path = openapi.paths[url][method];
+    const endpoint = openapi.paths[url];
+    if (!endpoint) {
+        throw new NotDeclaredEndpointInOpenapi(url);
+    }
+
+    const path = endpoint[method];
     const response = path.responses[200];
     const content = response.content['application/json'];
     const schema = content.schema;
@@ -45,11 +53,11 @@ export const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject =>
 
     const paths = ref.split('/');
     const schemaName = paths[paths.length - 1];
-    const schemaData = openapi.components.schemas[schemaName];
+    const schemaDefinition = openapi.components.schemas[schemaName];
 
-    if (!schemaData) {
+    if (!schemaDefinition) {
         //
     }
 
-    return schemaData as OpenAPIV3.SchemaObject;
+    return schemaDefinition as OpenAPIV3.SchemaObject;
 }

@@ -157,9 +157,9 @@ const collectRows = (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: 
 }
 
 const getTableColumnsXlsx = (properties): Array<Partial<Excel.Column>> => {
-    return Object.entries(properties).map(([key, value]: [string, OpenAPIV3.SchemaObject]) => ({
-        key,
-        header: value.title
+    return wrapSchemaProperties(properties).map(property => ({
+        key: property.key,
+        header: property.value.title
     }));
 }
 
@@ -216,9 +216,10 @@ const getListDocDefinitionPdf = (rows) => {
     }
 }
 
-const writeBufferPdf = async (docDefinition) => {
+const writeBufferPdf = async (docDefinition): Promise<Buffer> => {
     return new Promise((resolve) => {
         const fonts = getFonts(__dirname);
+
         const printer = new PdfPrinter(fonts);
         const doc = printer.createPdfKitDocument(docDefinition);
 
@@ -238,9 +239,7 @@ const writeBufferPdf = async (docDefinition) => {
     });
 }
 
-const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
-    const rows = collectRows(data, schema, type);
-
+const constructPDF = async (rows, schema: OpenAPIV3.SchemaObject, type: Type): Promise<Buffer> => {
     let docDefinition;
 
     if (type === CONFIG.TABLE_TYPE_NAME) {
@@ -252,7 +251,7 @@ const constructPDF = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject,
     return await writeBufferPdf(docDefinition);
 }
 
-const constructXLSX = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject, type: Type) => {
+const constructXLSX = async (rows, schema: OpenAPIV3.SchemaObject, type: Type): Promise<Buffer> => {
     const workbook = new Excel.Workbook();
     const worksheet = workbook.addWorksheet();
 
@@ -262,21 +261,21 @@ const constructXLSX = async (data: Data | Data[], schema: OpenAPIV3.SchemaObject
         worksheet.columns = getListColumnsXlsx();
     }
 
-    const rows = collectRows(data, schema, type);
     worksheet.addRows(rows);
 
-    return await workbook.xlsx.writeBuffer();
+    return await workbook.xlsx.writeBuffer() as Buffer;
 }
 
-const constructDocument = async (params: ConstructDocumentParams) => {
+const constructDocument = async (params: ConstructDocumentParams): Promise<Buffer> => {
     const schema = getOpenapiSchema(params.url, params.method);
+    const rows = collectRows(params.data, schema, params.type);
 
     let buffer;
 
     if (params.ext === CONFIG.PDF_EXT_NAME) {
-        buffer = await constructPDF(params.data, schema, params.type);
+        buffer = await constructPDF(rows, schema, params.type);
     } else if (params.ext === CONFIG.XLSX_EXT_NAME) {
-        buffer = await constructXLSX(params.data, schema, params.type);
+        buffer = await constructXLSX(rows, schema, params.type);
     }
 
     return buffer;

@@ -3,7 +3,7 @@ import * as SwaggerParser from 'swagger-parser';
 import * as Cache from './cache';
 import {
     InvalidOpenapiFile,
-    NotDeclaredEndpointInOpenapi
+    NotDeclaredEndpointInOpenapi, NotFoundMethodForEndpointInOpenapi
 } from './errors';
 import { CONFIG } from './config'
 
@@ -26,6 +26,14 @@ export const parseOpenapi = async (openapiPath: string): Promise<OpenAPI.Documen
     }
 }
 
+const getSchemaRef = (schema) => {
+    if (schema?.type === 'array') {
+        return schema.items.$ref;
+    }
+
+    return schema.$ref;
+}
+
 export const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject => {
     const openapi: OpenAPIV3.Document = cache.get(CONFIG.OPENAPI_CACHE_KEY);
 
@@ -35,17 +43,15 @@ export const getOpenapiSchema = (url, method = 'get'): OpenAPIV3.SchemaObject =>
     }
 
     const path = endpoint[method];
+    if (!path) {
+        throw new NotFoundMethodForEndpointInOpenapi();
+    }
+
     const response = path.responses[200];
     const content = response.content['application/json'];
     const schema = content.schema;
 
-    let ref
-
-    if (schema?.type === 'array') {
-        ref = schema.items.$ref;
-    }
-
-    ref = schema.$ref;
+    const ref = getSchemaRef(schema);
 
     if (!ref) {
         //
